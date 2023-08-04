@@ -1,18 +1,31 @@
 // Imports the Google Cloud client library
 const { SpeechClient } = require('@google-cloud/speech');
-const { createReadStream } = require('fs');
-const path = require('path');
+const { Storage } = require('@google-cloud/storage')
+const path = require('path')
+
+
+const bucketName = 'bbb-transcription';
+const serviceKey = path.join(__dirname, './auth-key.json')
+
 let transcription = "";
 
 // get file name from command line
 const fileName = process.argv[2];
+const meetingId = process.argv[3];
 
 // Creates a client
-const client = new SpeechClient({
+const speechClient = new SpeechClient({
     // get auth key json file from  current directory
-    keyFilename: path.join(__dirname, 'auth-key.json'),
-
+    keyFilename: serviceKey
 });
+
+// Create a storage client
+const storage = new Storage({
+    keyFilename: serviceKey
+})
+
+const bucket = storage.bucket(bucketName);
+
 
 const config = {
     encoding: 'LINEAR16',
@@ -22,30 +35,41 @@ const config = {
     enableAutomaticPunctuation: true,
 };
 
-const audioFilePath = fileName
+async function main() {
+    try {
+        const resp = await bucket.upload(fileName, {
+            destination: `audios/${meetingId}.wav`,
+        })
 
-const request = {
-    config: config,
-};
+        console.log(resp)
+
+        const request = {
+            config: config,
+            audio: {
+                uri: `gs://${bucketName}/audios/${meetingId}.wav`,
+            },
+
+            outputConfig: {
+                gcsUri: `gs://${bucketName}/transcriptions/${meetingId}.json`,
+            },
+
+            model: "default",
+            processingStrategy: "DYNAMIC_BATCH"
+        };
+
+        const [operation] = speechClient.longRunningRecognize(request)
+        await operation.promise()
+
+        console.log("Transcription complete")
+        // gcs public uri for transcription file
+        console.log(`gs://${bucketName}/transcriptions/${meetingId}.json`)
+
+    } catch (error) {
+        console.log(error)
+    }
+}
+
+main().catch(console.error);
 
 
-const recognizeStream = client
-    .streamingRecognize(request)
-    .on('error', error => {
-        process.stdout.write(JSON.stringify({
-            status: "error",
-            error: error.message
-        }));
-    })
-    .on('data', data => {
-        const result = data.results[0].alternatives[0].transcript
-        transcription += result;
-    })
-    .on('end', () => {
-        process.stdout.write(JSON.stringify({
-            status: "completed",
-            text: transcription
-        }));
-    });
 
-createReadStream(audioFilePath).pipe(recognizeStream);

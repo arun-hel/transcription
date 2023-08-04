@@ -92,7 +92,7 @@ begin
       audio_file = "#{webcams_file_path}/audio.wav"
       BigBlueButton.logger.info("Processing transcription for #{meeting_id}")
 
-      response = `node /usr/local/bigbluebutton/core/scripts/post_publish/transcription_node_app/app.js #{audio_file}`
+      response = `node /usr/local/bigbluebutton/core/scripts/post_publish/transcription_node_app/app.js #{audio_file} #{meeting_id}`
       transcription_data = JSON.parse(response)
 
       if transcription_data["status"] == "error"
