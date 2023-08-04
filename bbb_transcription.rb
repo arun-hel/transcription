@@ -21,7 +21,8 @@ meeting_id = opts[:meeting_id]
 bbb_web_properties = "/etc/bigbluebutton/bbb-web.properties"
 events_xml = "/var/bigbluebutton/recording/raw/#{meeting_id}/events.xml"
 recording_path = "/var/bigbluebutton/published/presentation/#{meeting_id}"
-transcript_file = "#{recording_path}/transcript.json"
+transcript_folder = "/var/bigbluebutton/transcripts/#{meeting_id}"
+transcript_file = "#{transcript_folder}/transcript.json"
 webcams_file_path = "#{recording_path}/video"
 video_format = "mp4"
 
@@ -111,6 +112,7 @@ begin
           "transcription" => transcription_data["text"],
         }
 
+        system("mkdir -p #{transcript_folder}")
         FileUtils.touch(transcript_file) if !File.file? (transcript_file)
         File.write(transcript_file, data_to_write.to_json)
 
@@ -121,7 +123,7 @@ begin
             "start_time" => events_data.start,
             "end_time" => events_data.finish,
             "meeting_id" => meeting_id,
-            "transcription_url" => "#{bbb_url}/presentation/#{meeting_id}/transcript.json",
+            "transcription_url" => "#{bbb_url}/transcripts/#{meeting_id}/transcript.json",
           }
           response = http_client(callback_url, "post", callback_data)
 
